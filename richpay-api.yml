@@ -1,0 +1,590 @@
+openapi: 3.0.1
+info:
+  title: 睿聚科技支付 API
+  description: >
+    本文件說明貴公司如何透過睿聚科技的支付 API，向貴公司的客戶收取款項。
+
+    ### 注意事項
+
+    ##### 金額
+
+    本 API 都是以 64bit 長整數來表示固定四位小數；簡單來說，除以一萬即是便於顯示的數字，即 `12345` = `1.2345`
+
+    ##### 時間
+
+    為避免時區問題，本 API 都是以 unix timestamp (1970/01/01 00:00:00 +00:00 起的秒數)
+    表示。請貴公司串接時，務必留意使用的程式語言，在轉換 timestamp 時是否需要設定正確時區。
+
+    ##### 參數傳遞
+
+    本 API 只接受 JSON 格式的參數。請特別注意部份只接受單一字串的 API (如 `取得某訂單的付款說明`) 仍應將字串轉成 JSON 格式。
+
+    ### 角色說明
+
+    - 客戶: 即付款人
+
+    - 商家: 即貴公司
+
+    - 供應商: 與睿聚合作，實際進行收款作業的人 (如銀行、超商等)
+
+    ### 完整流程說明
+      
+    - 客戶向商家提出購買商品 (或服務) 的要求，經雙方合意決定交易內容與應付金額
+
+    - 商家透過 `建立訂單` 的 API 通知睿聚，建立應收款項的資料 (訂單)
+
+    - 承上，資料建立成功後，API 會回傳相關資料及付款說明
+
+    - 商家以適當的方式出示付款說明給客戶
+
+    - 客戶依照說明，到指定的供應商處，進行付款作業成功
+
+    - 供應商通知睿聚付款成功
+
+    - 睿聚透過 `建立訂單` 的 callback，通知商家該訂單已付款
+
+    - 商家收到通知後，依照與客戶的約定，出貨或提供服務給客戶
+
+    - 供應商依照約定時間，將此款項撥給睿聚
+
+    - 睿聚依照約定時間，將此款項撥給商家
+  termsOfService: 'https://www.richpay.com.tw/tpl/mb_rules.html'
+  contact:
+    email: service@richpay.com.tw
+  version: 1.0.0
+externalDocs:
+  description: 睿聚科技
+  url: 'https://www.richpay.com.tw'
+servers:
+  - url: 'https://api4ok-test.richpay.com.tw'
+    description: 測試站
+tags:
+  - name: order
+    description: 訂單相關 API
+paths:
+  /api/order/payment:
+    post:
+      summary: 取得某訂單的付款說明
+      description: 此 API 回傳客戶欲對特定訂單進行付款程序時，所必需要的資訊
+      tags:
+        - order
+      parameters:
+        - name: X-Api-Key
+          in: header
+          description: 配發給貴公司的 API KEY
+          required: true
+          style: simple
+          schema:
+            $ref: '#/components/schemas/api_key'
+      requestBody:
+        description: 請將欲查詢的訂單編號以 JSON 格式傳送
+        required: true
+        content:
+          application/json:
+            schema:
+              type: string
+              description: 訂單編號
+              example: '"ABC123"'
+      responses:
+        default:
+          description: |
+            回應內容採 JSONAPI 格式，包含了錯誤碼或付款說明
+
+            錯誤資訊 (errors) 與回傳資料 (data)是互斥的，有錯誤資訊就不會有回傳資料，反之亦然
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  errors:
+                    description: 錯誤資訊
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/error_object'
+                  data:
+                    description: API 執行成功時回傳的資料 (給客戶的付款資訊)
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        description: 客戶如何付款
+                        example: ATM
+                      data:
+                        $ref: '#/components/schemas/PaymentInfo'
+  /api/order/create:
+    post:
+      summary: 建立訂單
+      description: 貴公司透過此 API 通知睿聚應收款項
+      tags:
+        - order
+      parameters:
+        - name: X-Api-Key
+          in: header
+          description: 配發給貴公司的 API KEY
+          required: true
+          style: simple
+          schema:
+            $ref: '#/components/schemas/api_key'
+      requestBody:
+        description: API 的參數由 POST BODY 以 JSON 格式傳遞，內容如下
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - amount
+                - buyer_name
+                - buyer_email
+                - buyer_contact
+              properties:
+                method_id:
+                  type: string
+                  description: 支付方式的編號，您可從管理介面找到此資訊 (此欄位與 pay_type 至少需擇一傳送)
+                  example: ABC123
+                pay_type:
+                  type: string
+                  description: |
+                    要讓客戶以何種方式付款，目前支援的有
+
+                    - ATM: ATM 轉帳付款
+
+                    此欄位與 method_id 至少需擇一傳送
+                  example: ATM
+                title:
+                  type: string
+                  description: 訂單標題，最大 64 字
+                  example: 商城購物
+                detail:
+                  type: string
+                  description: 訂單明細，可使用 Markdown 語法
+                  example: |
+                    - 某商品 15 X 1 = 15 元
+                    - 某商品 15 X 1 = 15 元
+                amount:
+                  type: integer
+                  format: int64
+                  description: 訂單金額，睿聚將代貴公司向客戶收取這個金額的費用
+                  example: 300000
+                buyer_name:
+                  type: string
+                  description: 付款人姓名
+                  example: 王大明
+                buyer_email:
+                  type: string
+                  format: email
+                  description: 付款人電子郵件信箱
+                  example: user@example.com
+                buyer_contact:
+                  type: string
+                  description: 付款人連絡電話
+                  example: 0987654321
+                callback:
+                  type: string
+                  description: 睿聚會在客戶付款成功後，以 json post 的方式傳送通知到此網址
+                  example: 'https://your.comany.com/user/paid'
+                due:
+                  type: integer
+                  format: int64
+                  description: 付款期限，依照供應商的規定不同，實際繳款期限可能會與此欄位稍有出入，請以回應的訂單資料內容為準
+                  example: 1546272000
+      responses:
+        default:
+          description: |
+            回應內容採 JSONAPI 格式，包含了錯誤碼、訂單資訊及付款資訊
+
+            錯誤資訊 (errors) 與回傳資料 (data)是互斥的，有錯誤資訊就不會有回傳資料，反之亦然
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  errors:
+                    description: 錯誤資訊
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/error_object'
+                  data:
+                    description: API 執行成功時回傳的資料
+                    type: object
+                    properties:
+                      order:
+                        $ref: '#/components/schemas/Order'
+                      payment:
+                        $ref: '#/components/schemas/PaymentInfo'
+      callbacks:
+        'https://example.com/callback':
+          付款通知:
+            post:
+              description: |
+                付款通知的資料將透過 POST 以 JSON 格式傳送
+
+                為了確保資料正確未經他人修改，我們會使用貴公司的用戶編號計算驗證碼，公式如下
+
+                1. 先將 `data` 內的資料，依鍵值的 ASCII 順序由小至大排列並轉成 JSON 格式，得到字串 A
+                2. 在字串 A 的後方，附加上貴公司的用戶編號，得到字串 B
+                3. 將字串 B 進行 MD5 hash 計算，得到字串 C
+                4. 將字串 C 的內容轉成大寫，即為驗證碼
+
+                虛擬碼如下
+
+                ```
+                notify = JSON_DECODE(request.body)
+                a = JSON_ENCODE( SORT_BY_KEY_ASC(notify.data) )
+                b = a + "ABC123"
+                c = MD5(b)
+                checksum = TO_UPPERCASE(c)
+                ```
+
+                用戶編號請在管理後台查詢
+              requestBody:
+                content:
+                  application/json:
+                    schema:
+                      type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            result_id:
+                              type: string
+                              description: 付款結果的編號
+                              example: ABC123
+                            order_id:
+                              type: string
+                              description: 對應的訂單的編號
+                              example: ABC123
+                            store_order_id:
+                              type: string
+                              description: 貴公司在建立訂單時傳來的訂單編號
+                              example: RP1234
+                            order_create_at:
+                              type: integer
+                              format: int64
+                              description: 訂單建立時間
+                              example: 1546272000
+                            order_token:
+                              type: string
+                              description: >
+                                訂單的代碼，針對各種不同支付方式標示的重要資訊 (如使用 ATM
+                                轉帳付款的話，可能會是收款帳號)
+                              example: '00000000000000'
+                            amount:
+                              type: integer
+                              format: int64
+                              description: 付款金額
+                              example: 300000
+                            paid_time:
+                              type: integer
+                              format: int64
+                              description: >-
+                                供應商回報的付款時間 (unix timestamp, 從 1970-01-01
+                                00:00:00 開始計算的秒數)
+                              example: 1546272000
+                            pay_type:
+                              type: string
+                              description: 客戶如何付款
+                              example: ATM
+                            param:
+                              $ref: '#/components/schemas/notifyParam'
+                        checksum:
+                          type: string
+                          example: 1234567890ABCDEF1234567890ABCDEF
+              responses:
+                default:
+                  description: 回傳 0000 代表貴公司已成功接受通知，其他內容則視為失敗，睿聚將會在稍後重送通知
+                  content:
+                    text/plain:
+                      schema:
+                        type: string
+                        example: '0000'
+components:
+  schemas:
+    error_object:
+      title: 錯誤資訊
+      type: object
+      description: API 回傳的錯誤資訊
+      properties:
+        code:
+          type: string
+          description: 錯誤代碼，以 - 分隔的兩段式代碼，左方為錯誤類型，右方為實際錯誤
+          example: E400-0001
+        detail:
+          type: string
+          description: 錯誤說明，以英文傳遞
+          example: INVALID PARAM
+    api_key:
+      type: string
+      title: 存取 API 用的金鑰
+      description: |
+        請從後台介面管理貴司的金鑰
+      example: f9a4bd44d507f63b96522e9c4a2f88b6
+    order_status:
+      type: string
+      title: 訂單狀態
+      description: |
+        訂單處理的狀態，有以下幾種可能
+        * CREATED: 睿聚的系統已接受此筆訂單，等待與供應商交換資料及確認
+        * CONFIRMED: 睿聚的系統已向供應商確認成功，您可以使用睿聚的 API 取得相關的付款訊息
+        * REJECTED: 與供應商交換資料失敗
+        * CANCELED: 睿聚的系統因故無法接受此訂單
+    result_status:
+      type: string
+      title: 款項狀態
+      description: |
+        此訂單相關款項的狀態，有以下幾種可能
+        * CREATED: 已啟動付款流程，但狀態還不確定 (例如付款流程尚未完成)
+        * CANCELED: 客戶取消付款
+        * REJECTED: 供應商拒絕客戶的付款要求 (例如超過繳款期限或客戶餘額不足)
+        * DENIED: 睿聚依相關規定，拒絕客戶的付款要求
+        * PAID: 供應商已收到客戶的款項
+        * TRANSFERRED: 供應商已向睿聚確認此筆款項，將於約定的時間撥款給睿聚
+        * CONFIRMED: 睿聚已完成撥款給貴司的程序
+    Driver:
+      title: 支付模組
+      description: |
+        每個支付模組都是來自各供應商提供的不同收款方式
+      type: object
+      required:
+        - name
+        - version
+      properties:
+        name:
+          type: string
+          description: 支付模組與供應商的名稱
+          example: richpay.com.tw/example
+        version:
+          type: integer
+          description: 此模組的版本
+          example: 1
+    Method:
+      title: 支付方式
+      description: |
+        每個支付方式，都代表了貴司與睿聚約定可供使用的支付模組
+      type: object
+      required:
+        - user_id
+        - token
+        - name
+        - min_amount
+        - max_amount
+        - closed
+      properties:
+        user_id:
+          type: string
+          description: 您的用戶編號
+          example: ABC123
+        token:
+          type: string
+          description: 用來識別此支付方式的編號
+          example: somerandomstring
+        name:
+          type: string
+          description: 您設定的支付方式名稱
+          example: 全家代碼繳費
+        min_amount:
+          type: integer
+          format: int64
+          description: 最小可接受的金額
+          example: 10000
+        max_amount:
+          type: integer
+          format: int64
+          description: 最大可接受的金額 (不含)
+          example: 10000
+        closed:
+          type: boolean
+          description: 是否停用
+          example: false
+        driver:
+          $ref: '#/components/schemas/Driver'
+    Request:
+      title: 支付通道
+      description: >
+        [尚未開放] 支付通道讓貴司可以根據需求，透過後台設定，將您的訂單分門別類
+
+        #### 此功能使用範例
+
+        某商城想提供 VIP 客戶百元起訂的客製化服務，同時要求散客較高的起訂金額。 此時可以讓 VIP
+        客戶及散客的訂單使用不同的支付通道，並將散客的支付通道金額下限調高。
+      type: object
+      required:
+        - id
+        - title
+        - min_amount
+        - max_amount
+      properties:
+        id:
+          type: string
+          description: 編號
+          example: ABC123
+        title:
+          type: string
+          description: 貴司從後台設定的支付通道名稱
+          example: 陌生客專用
+        description:
+          type: string
+          description: 貴司從後台設定的支付通道說明
+          example: 未知客群，高起訂/低額度，降低棄單退貨風險
+        min_amount:
+          type: integer
+          format: int64
+          description: 最小可接受的金額
+          example: 10000
+        max_amount:
+          type: integer
+          format: int64
+          description: 最大可接受的金額 (不含)
+          example: 10000
+        methods:
+          type: array
+          description: 此通道可用的支付方式
+          items:
+            type: string
+            description: 支付方式的編號
+            example: ABC123
+    Order:
+      title: 訂單
+      description: |
+        訂單是貴司透過匯富支付 API 向您的客戶收款的憑據及記錄
+      type: object
+      required:
+        - id
+        - amount
+        - title
+        - detail
+        - status
+        - due
+      properties:
+        id:
+          type: string
+          description: 編號
+          example: ABC123
+        amount:
+          type: integer
+          format: int64
+          description: 訂單總金額
+          example: 300000
+        title:
+          type: string
+          description: 訂單標題 (建議您簡單敘述收款原因)
+          example: 商城購物
+        detail:
+          type: string
+          description: 訂單內容 (可使用 markdown 語法，建議您簡單列出客戶購買的品項)
+          example: |
+            - 某商品 15 x 1 = 15元
+            - 某商品 15 x 1 = 15元
+        status:
+          $ref: '#/components/schemas/order_status'
+        due:
+          type: integer
+          format: int64
+          description: 繳款期限
+          example: 1546272000
+        request:
+          $ref: '#/components/schemas/Request'
+        method:
+          $ref: '#/components/schemas/Method'
+    Result:
+      title: 付款結果
+      description: |
+        每一筆付款結果都代表了某筆訂單中的一筆款項資訊
+      type: object
+      required:
+        - id
+        - amount
+        - status
+        - time
+      properties:
+        id:
+          type: string
+          description: 編號
+          example: ABC123
+        amount:
+          type: integer
+          format: int64
+          description: 此筆款項金額
+          example: 1000000
+        status:
+          $ref: '#/components/schemas/result_status'
+        time:
+          type: integer
+          format: int64
+          description: 交易時間
+          example: 1546272000
+        order:
+          $ref: '#/components/schemas/Order'
+    PaymentInfo:
+      title: 客戶付款說明
+      description: 客戶進行付款所需要的資訊，目前僅支援 ATM 轉帳付款
+      type: object
+      oneOf:
+        - $ref: '#/components/schemas/PayByATM'
+        - $ref: '#/components/schemas/PayByToken'
+      example:
+        $ref: '#/components/schemas/PayByATM/example'
+    PayByATM:
+      title: ATM 轉帳付款說明
+      description: 客戶使用 ATM 轉帳付款時所需的資訊
+      required:
+        - bank_name
+        - bank_id
+        - account
+      example:
+        bank_name:
+          $ref: '#/components/schemas/PayByATM/properties/bank_name/example'
+        bank_id:
+          $ref: '#/components/schemas/PayByATM/properties/bank_id/example'
+        account:
+          $ref: '#/components/schemas/PayByATM/properties/account/example'
+      properties:
+        bank_name:
+          description: 銀行名稱 (將使用該銀行當地語言顯示)
+          type: string
+          example: 第一銀行
+        bank_id:
+          description: 銀行轉帳代號
+          type: string
+          example: '007'
+        account:
+          description: 收款銀行帳戶
+          type: string
+          example: '000000000000000000'
+    PayByToken:
+      title: 便利商店代碼繳費說明
+      description: 客戶使用便利商店的代碼繳費服務進行付款時，所需要的資訊
+      example:
+        token:
+          $ref: '#/components/schemas/PayByToken/properties/token/example'
+        description:
+          $ref: '#/components/schemas/PayByToken/properties/description/example'
+      properties:
+        token:
+          title: 繳費代碼
+          description: 請至指定的便利商店，輸入繳費代碼產生小白單後，持小白單至櫃檯繳費
+          example: RPP1234
+        description:
+          title: 繳費說明
+          description: 以便利商店當地語言顯示的繳費方式指示
+          example: 請至○○便利商店，使用○○機輸入代碼產生繳費單後，持單至櫃檯繳費
+    notifyParam:
+      title: 客戶付款通知資訊
+      description: 客戶付款成功後，睿聚透過 callback 通知貴公司有關付款人的資訊
+      type: object
+      oneOf:
+        - $ref: '#/components/schemas/notifyATM'
+      example:
+        $ref: '#/components/schemas/notifyATM/example'
+    notifyATM:
+      title: ATM 轉帳付款通知
+      description: 當客戶使用 ATM 轉帳繳費成功後，透過付款通知貴公司的資料
+      example:
+        source_account:
+          $ref: '#/components/schemas/notifyATM/properties/source_account/example'
+      properties:
+        source_account:
+          type: string
+          description: '''付款銀行代碼-付款帳號末五碼'''
+          example: 007-12345
