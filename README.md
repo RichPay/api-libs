@@ -2,7 +2,7 @@
 
 本 API 文件採用 OAS3 格式撰寫，並提供 swagger-ui 供合作商家測試
 
-- [主要文件](https://api-test.richpay.com.tw/doc/) (swagger-ui，可線上測試)
+- [主要文件](https://api4ok-test.richpay.com.tw/doc/) (swagger-ui，可線上測試)
 - [OpenAPI Spec](https://raw.githubusercontent.com/RichPay/api-libs/master/richpay-api.yaml)
 
 另外亦提供易於使用的程式庫 [WIP]
