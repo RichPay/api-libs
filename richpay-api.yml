@@ -56,8 +56,10 @@ externalDocs:
   description: 睿聚科技
   url: 'https://www.richpay.com.tw'
 servers:
-  - url: 'https://api4ok-test.richpay.com.tw'
-    description: 測試站
+  - url: 'https://bo-test.richpay.com.tw'
+    description: 測試環境
+  - url: 'https://bo.richpay.com.tw'
+    description: 正式環境
 tags:
   - name: order
     description: 訂單相關 API
@@ -149,6 +151,7 @@ paths:
                     要讓客戶以何種方式付款，目前支援的有
 
                     - ATM: ATM 轉帳付款
+                    - TOKEN: 超商代碼繳費
 
                     此欄位與 method_id 至少需擇一傳送
                   example: ATM
@@ -518,7 +521,7 @@ components:
           $ref: '#/components/schemas/Order'
     PaymentInfo:
       title: 客戶付款說明
-      description: 客戶進行付款所需要的資訊，目前僅支援 ATM 轉帳付款
+      description: 客戶進行付款所需要的資訊
       type: object
       oneOf:
         - $ref: '#/components/schemas/PayByATM'
@@ -575,6 +578,7 @@ components:
       type: object
       oneOf:
         - $ref: '#/components/schemas/notifyATM'
+        - $ref: '#/components/schemas/notifyTOKEN'
       example:
         $ref: '#/components/schemas/notifyATM/example'
     notifyATM:
@@ -588,3 +592,54 @@ components:
           type: string
           description: '''付款銀行代碼-付款帳號末五碼'''
           example: 007-12345
+    notifyTOKEN:
+      title: 超商代碼繳費通知
+      description: 當客戶使用超商代碼繳費成功後，透過付款通知貴公司的資料
+      example:
+        from: 7-11
+        barcode2: RPP1234567890123
+        terminal_name: ○○門市
+        terminal_addr: ○○市○○路○號
+        ternimal_tel: 0987654321
+        terminal_no: '1234'
+        serial: 1234567A
+      properties:
+        from:
+          type: string
+          description: |
+            超商類別代碼
+
+            * `7-11` - 7ELEVEN
+            * `fami` - 全家
+            * `ok` - OK
+            * `hilife`-  萊爾富
+          enum:
+            - 7-11
+            - fami
+            - hilife
+            - ok
+          example: 7-11
+        barcode2:
+          type: string
+          description: 第二段條碼，格式可能會因不同超商而有不同
+          example: RPP1234567890123
+        terminal_name:
+          type: string
+          description: 收款門市名稱，超商未提供此資訊時留白
+          example: ○○門市
+        terminal_addr:
+          type: string
+          description: 收款門市地址，超商未提供此資訊時留白
+          example: ○○市○○路○號
+        terminal_tel:
+          type: string
+          description: 收款門市電話，超商未提供此資訊時留白
+          example: 0987654321
+        terminal_no:
+          type: string
+          description: 收款門市編號，超商未提供此資訊時留白
+          example: '1234'
+        serial:
+          type: string
+          description: 交易編號，不同超商的格式可能不同
+          example: 1234567A
