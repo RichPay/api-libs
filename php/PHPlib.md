@@ -43,7 +43,7 @@ $api = new RichpayAPI();
 $ret = $api->createOrder([
   // 以下必填
   'amount' => 3200, // 訂單金額
-  'title' => '○○商城購物', // 訂單標題
+  'title' => 'OO商城購物', // 訂單標題
   'name' => '王大明', // 客戶姓名，依金管會要求請務必確實填寫
   'email' => 'user@example.com', // 客戶電郵，依金管會要求請務必確實填寫
   'phone' => '0987654321', // 客戸電話，依金管會要求請務必確實填寫
@@ -119,18 +119,16 @@ $result = $api->createOrder($param);
 
 參數為 array 格式，可使用的 array key 如下
 
-| 欄位 | 說明 |
-|:------|:------|
-| `amount` | 訂單金額，必填 |
-| `title`  | 訂單標題，部份支付方式會顯示此欄位給客戶以便確認，請簡述本次請款的原因，並避免使用特殊符號，必填 | 
-| `name`   | 客戶姓名，此項目為金管會要求之資訊，請務必確實填寫，必填 |
-| `email`  | 客戶電郵，此項目為金管會要求之資訊，請務必確實填寫，必填 |
-| `phone`  | 客戶聯絡電話，此項目為金管會要求之資訊，請務必確實填寫，必填 |
-| `result_callback` | 貴司接收付款成功通知的完整網址 |
-| `pay_type` | 收款的方式，我司會依與貴司訂定的合約，選擇適當的支付方式。可使用的值有 `ATM` (銀從虛擬帳號) 及 `TOKEN` 超商代碼繳費。若貴司有填寫 `method` 的話，此欄位可不填 |
-| `method` | 指定支付方式的編號。貴司可從 [後台查看已開通的支付方式](https://bo-test.richpay.com.tw/method/list_mine)，並抄錄編號填入此欄位。若貴司有填寫 `pay_type` 欄位的話，此欄位可不填 |
-| `order_id` | 貴司自訂的訂單編號，可不填 |
-| `detail` | 訂單明細，會顯示在後台，但不會出現在收款過程。可使用 markdown 語法 |
+- `amount`:         訂單金額，必填
+- `title`:          訂單標題，部份支付方式會顯示此欄位給客戶以便確認，請簡述本次請款的原因，並避免使用特殊符號，必填 
+- `name`:           客戶姓名，此項目為金管會要求之資訊，請務必確實填寫，必填
+- `email`:          客戶電郵，此項目為金管會要求之資訊，請務必確實填寫，必填
+- `phone`:          客戶聯絡電話，此項目為金管會要求之資訊，請務必確實填寫，必填
+- `result_callback`:  貴司接收付款成功通知的完整網址
+- `pay_type`:        收款的方式，我司會依與貴司訂定的合約，選擇適當的支付方式。可使用的值有 `ATM` (銀從虛擬帳號) 及 `TOKEN` 超商代碼繳費。若貴司有填寫`method` 的話，此欄位可不填
+- `method`:         指定支付方式的編號。貴司可從 [後台查看已開通的支付方式](https://bo-test.richpay.com.tw/method/list_mine)，並抄錄編號填入此欄位。若貴司有填寫 `pay_type` 欄位的話，此欄位可不填
+- `order_id`:       貴司自訂的訂單編號，可不填
+- `detail`:         訂單明細，會顯示在後台，但不會出現在收款過程。可使用 markdown 語法
 
 回傳值為訂單資訊及付款指示
 
@@ -162,7 +160,7 @@ $result = $api->createOrder($param);
 [
     "type" => "ATM", // ATM 轉帳
     "data" => [
-        "bank_name" => "○○銀行", // 銀行名稱
+        "bank_name" => "OO銀行", // 銀行名稱
         "bank_code" => "987", // 銀行轉帳代碼
         "account" => "1234", // 虛擬帳號
     ]
@@ -210,9 +208,9 @@ $result = $api->acceptNotify($http_body);
             // TOKEN 提供以下資訊 (視超商提供之資訊，部份欄位可能會是空白
             "from": "711", // 超商名稱，可能是 711/fami/ok/hilife
             "terminal_no": "1234", // 繳款門市/收銀機的編號
-            "terminal_name": "○○門市", // 門市名稱
+            "terminal_name": "OO門市", // 門市名稱
             "terminal_tel": "04-22343234", // 門市電話
-            "terminal_addr": "台中市○○路○號",  // 門市地址
+            "terminal_addr": "台中市OO路O號",  // 門市地址
             "serial": "abc123",    // 交易序號
             "barcode2": "12345678", // 第二段條碼
         ],
@@ -245,7 +243,7 @@ $result = $api->getPaymentInfo($order_id);
     "type" => "ATM", // 付款方式 (ATM 或 TOKEN)
     "data" => [
         // 此項內容與建立訂單回應的格式相同，以 ATM 為例
-        "bank_name": "○○銀行",
+        "bank_name": "OO銀行",
         "bank_id": "987",
         "account": "1234",
     ],
